@@ -1,10 +1,21 @@
+import { getHotels } from "@/actions/getHotels";
+import HotelList from "@/components/hotel/HotelList";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-
-export default function Home() {
-  return (
+interface HomeProps{
+  searchParams:{
+    title:string;
+    country:string;
+    state:string;
+    city:string;
+  }
+}
+export default async function Home({searchParams}:HomeProps) {
+ const hotels= await getHotels(searchParams)
+ if(!hotels) return <div>No hotels found ...</div>
+ return (
    <div>
-    Home Page <Button variant='outline'>Home</Button>
+    <HotelList hotels={hotels}/>
    </div>
   );
 }

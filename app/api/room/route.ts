@@ -9,13 +9,12 @@ export async function POST(req:Request){
         if(!userId){
             return new NextResponse('Unauthorized',{status:401})
         }
-        const hotel=await prismadb.hotel.create({
+        const room=await prismadb.room.create({
             data:{
                 ...body,
-                userId
             }
         })
-        return NextResponse.json(hotel)
+        return NextResponse.json(room)
     } catch (error) {
         return new NextResponse("Internal Server Error",{status:500})
     }
