@@ -1,6 +1,6 @@
 "use client";
 
-import { Booking, Hotel, Room } from "@prisma/client";
+import { Booking, Hotel,  Room } from "@prisma/client";
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../ui/card";
+import moment from 'moment'
 import Image from "next/image";
 import AmenityItem from "../AmenityItem";
 import {
@@ -19,6 +20,7 @@ import {
   Castle,
   Home,
   Loader2,
+  MapPin,
   MountainSnow,
   Pencil,
   Plus,
@@ -44,24 +46,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import AddRoomForm from "./AddRoomForm";
 import axios from "axios";
 import { useToast } from "../ui/use-toast";
-import DateRangePicker from "./DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { differenceInCalendarDays, eachDayOfInterval } from "date-fns";
 import { Checkbox } from "../ui/checkbox";
-import { useAuth } from "@clerk/nextjs";
+import { auth, useAuth } from "@clerk/nextjs";
 import useBookRoom from "@/hooks/useBookRoom";
+import useLocation from "@/hooks/useLocation";
 
-interface RoomCardProps {
-  hotel?: Hotel & {
-    rooms: Room[];
-  };
-  room: Room;
-  bookings?: Booking[];
+interface MyBookingProps {
+  booking:Booking &{Room:Room | null}&{hotel:Hotel | null}
 }
-const RoomCard = ({ hotel, room, bookings }: RoomCardProps) => {
+const MyBookingClient:React.FC<MyBookingProps> = ({  booking }) => {
   const pathname = usePathname();
   const {setRoomData,paymentIntent,setClientSecret,setPaymentIntent}=useBookRoom()
   const isHotelDetailsPage = pathname.includes("hotel-details");
@@ -69,45 +66,26 @@ const RoomCard = ({ hotel, room, bookings }: RoomCardProps) => {
   const [bookingIsLoading, setBookingIsLoading] = useState(false);
   const [open, setopen] = useState(false);
   const [date,setDate]=useState<DateRange | undefined>()
-  const [totalPrice,setTotalPrice]=useState(room.roomPrice)
   const [includeBreakFast,setIncludeBreakFast]=useState(false)
   const[days,setDays]=useState(0)
   const{userId}=useAuth()
   const router=useRouter()
   const {toast}=useToast()
-  const disableDates=useMemo(()=>{
-  let dates:Date[]=[]
-  const roomBookings=bookings?.filter(booking=>booking.roomId===room.id)
-  roomBookings?.forEach(bookings=>{
-    const range=eachDayOfInterval({
-      start:new Date(bookings.startDate),
-      end:new Date(bookings.endDate)
-    })
-    dates=[...dates,...range]
-  })
-  return dates
-
-  },[bookings])
+const {getCountryByCode,getStateByCode}=useLocation()
+const{hotel,Room}=booking
+if(!hotel || !Room ) return <div>Missing Data</div>
+const country=getCountryByCode(hotel.country)
+const state=getStateByCode(hotel.country,hotel.state)
+const startDate=moment(booking.startDate).format('MMMM Do YYYY')
+const endDate=moment(booking.endDate).format('MMMM Do YYYY')
+const dayCount=differenceInCalendarDays(
+    booking.endDate,booking.startDate
+)
+  
   const handleDalogueOpen = () => {
     setopen((prev) => !prev);
   };
-  useEffect(()=>{
- if(date && date.from && date.to){
-  const dayCount=differenceInCalendarDays(date.to,date.from)
-  setDays(dayCount)
-  console.log(dayCount)
-  if(dayCount && room.breakFastPrice){
-    if(includeBreakFast && room.breakFastPrice){
-setTotalPrice((dayCount * room.roomPrice)+(dayCount*room.breakFastPrice))
-    }else{
-  setTotalPrice(dayCount*room.roomPrice)
-    }
-  }
- 
- }else{
-  setTotalPrice(room.roomPrice)
- }
-  },[date,room.roomPrice,includeBreakFast])
+  
   const handleRoomDelete = (room: Room) => {
     setIsLoading(true);
     const imageKey = room.image.substring(room.image.lastIndexOf("/" + 1));
@@ -145,11 +123,11 @@ setTotalPrice((dayCount * room.roomPrice)+(dayCount*room.breakFastPrice))
     if(date?.from && date.to){
       setBookingIsLoading(true)
       const bookingRoomData={
-        room,
-        totalPrice,
-        breakFastIncluded:includeBreakFast,
-        startDate:date.from,
-        endDate:date.to
+       room: Room,
+        totalPrice:booking.totalPrice,
+        breakFastIncluded:booking.breakFastIncluded,
+        startDate:booking.startDate,
+        endDate:booking.endDate
       }
       setRoomData(bookingRoomData)
       fetch('/api/create-payment-intent',{
@@ -161,11 +139,11 @@ setTotalPrice((dayCount * room.roomPrice)+(dayCount*room.breakFastPrice))
           booking:{
             hotelOwnerId:hotel.userId,
             hotelId:hotel.id,
-            roomId:room.id,
+            roomId:Room.id,
             startDate:date.from,
             endDate:date.to,
             breakFastIncluded:includeBreakFast,
-            totalPrice:totalPrice
+            totalPrice:booking.totalPrice
           },
           payment_intent_id:'1'
         })
@@ -193,91 +171,100 @@ setTotalPrice((dayCount * room.roomPrice)+(dayCount*room.breakFastPrice))
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{room.title}</CardTitle>
-        <CardDescription>{room.description}</CardDescription>
+      <CardTitle>{hotel.title}</CardTitle>
+        <CardDescription>
+            <div className="font-semibold mt-4">
+<AmenityItem>
+    <MapPin className="h-4 w-4"/> {country?.name} ,{state?.name},{hotel.city}
+</AmenityItem>
+            </div>
+            <p className="pb-2">{hotel.locationDescription}</p>
+        </CardDescription>
+        <CardTitle>{Room.title}</CardTitle>
+        <CardDescription>{Room.description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="aspect-square overflow-hidden relative h-[200px] rounded-lg">
           <Image
             fill
-            src={room.image}
-            alt={room.title}
+            src={Room.image}
+            alt={Room.title}
             className="object-cover"
           />
         </div>
         <div className="grid grid-cols-2 gap-4 content-start text-sm">
           <AmenityItem>
-            <Bed className="h-4 w-4" /> {room.bedCount} Bed{"(s)"}
+            <Bed className="h-4 w-4" /> {Room.bedCount} Bed{"(s)"}
           </AmenityItem>
           <AmenityItem>
-            <Users className="h-4 w-4" /> {room.guestCount} Geust{"(s)"}
+            <Users className="h-4 w-4" /> {Room.guestCount} Geust{"(s)"}
           </AmenityItem>
           <AmenityItem>
-            <Bath className="h-4 w-4" /> {room.bathroomCount} Bath{"(s)"}
+            <Bath className="h-4 w-4" /> {Room.bathroomCount} Bath{"(s)"}
           </AmenityItem>
-          {room.kingBed > 0 && (
+          {Room.kingBed > 0 && (
             <AmenityItem>
-              <BedDouble className="h-4 w-4" /> {room.kingBed} king Bed{"(s)"}
+              <BedDouble className="h-4 w-4" /> {Room.kingBed} king Bed{"(s)"}
             </AmenityItem>
           )}
-          {!!room.queenBed && (
+          {!!Room.queenBed && (
             <AmenityItem>
               <Bed className="h-4 w-4" />
-              {room.queenBed} Queen Bed{"(s)"}
+              {Room.queenBed} Queen Bed{"(s)"}
             </AmenityItem>
           )}
-          {room.roomService && (
+          {Room.roomService && (
             <AmenityItem>
               <UtensilsCrossed className="h-4 w-4" />
               Room Services
             </AmenityItem>
           )}
-          {room.Tv && (
+          {Room.Tv && (
             <AmenityItem>
               <Tv className="h-4 w-4" />
               TV
             </AmenityItem>
           )}
-          {room.balcony && (
+          {Room.balcony && (
             <AmenityItem>
               <Home className="h-4 w-4" />
               Balcony
             </AmenityItem>
           )}
-          {room.freeWifi && (
+          {Room.freeWifi && (
             <AmenityItem>
               <Wifi className="h-4 w-4" /> Free Wifi
             </AmenityItem>
           )}
-          {room.cityView && (
+          {Room.cityView && (
             <AmenityItem>
               <Castle className="h-4 w-4" />
               City View
             </AmenityItem>
           )}
-          {room.oceanView && (
+          {Room.oceanView && (
             <AmenityItem>
               <Ship className="h-4 w-4" /> Ocean View
             </AmenityItem>
           )}
-          {room.forestView && (
+          {Room.forestView && (
             <AmenityItem>
               <Trees className="w-4 h-4" /> Forest View
             </AmenityItem>
           )}
-          {room.mountainView && (
+          {Room.mountainView && (
             <AmenityItem>
               <MountainSnow className="w-4 h-4" />
               Mountain View
             </AmenityItem>
           )}
 
-          {room.airCondition && (
+          {Room.airCondition && (
             <AmenityItem>
               <AirVent className="h-4 w-4" /> Air Condition
             </AmenityItem>
           )}
-          {room.soundProofed && (
+          {Room.soundProofed && (
             <AmenityItem>
               <VolumeX className="h-4 w-4" />
             </AmenityItem>
@@ -286,85 +273,43 @@ setTotalPrice((dayCount * room.roomPrice)+(dayCount*room.breakFastPrice))
         <Separator />
         <div className="flex gap-4 justify-between">
           <div>
-            Room Price: <span className="font-bold">${room.roomPrice}</span>
+            Room Price: <span className="font-bold">${Room.roomPrice}</span>
             <span className="text-xs">/24hrs</span>
           </div>
-          {!!room.breakFastPrice && (
+          {!!Room.breakFastPrice && (
             <div>
               {" "}
               Break Fast Price:{" "}
-              <span className="font-bold">${room.breakFastPrice}</span>
+              <span className="font-bold">${Room.breakFastPrice}</span>
             </div>
           )}
         </div>
+        <Separator/>
+        <div className="flex gap-4 justify-between">
+<CardTitle>Booking Details</CardTitle>
+<div className="text-primary/90">
+<div>
+    Room booked by {booking.userName} for {dayCount} days at {moment(booking.bookedAt).fromNow()}
+  <div>Check-in {startDate}  </div>
+  <div>Check-out {endDate}</div>
+  {booking.breakFastIncluded && <div>
+    Breakfast will be served
+    </div>}
+    {booking.paymentStatus?<div className="text-teal-500"> Paid ${booking.totalPrice} - Room Reserved
+
+    </div>:<div className="text-rose-500">
+        Not paid ${booking.totalPrice} - Room Not Reserved
+        
+        </div>}
+</div>
+</div>
+        </div>
       </CardContent>
-      <CardFooter>
-        {isHotelDetailsPage ? (
-          <div className="flex flex-col gap-6">
-            <div>
-              <div className="mb-2">Select days that you will spend in this room</div>
-              <DateRangePicker date={date} setDate={setDate} disabledDates={disableDates}/>
-            </div>
-            {room.breakFastPrice>0 && <div>
-              <div className="mb-2">Do you want to be served breakfast</div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="breakFast" onCheckedChange={(value)=>setIncludeBreakFast(!value)}/>
-              <label htmlFor="breakFast">Include BreakFast</label>
-              </div>
-              </div>}
-            <div>Total Price: <span className="font-bold">${totalPrice}</span> for <span>{days} Days</span></div>
-         <Button className="" onClick={()=>handleBookRoom()} disabled={bookingIsLoading} type="button">
-          {bookingIsLoading? <Loader2 className="mr-2 w-4 h-4"/>:<Wand2 className="mr-2 w-4 h-4"/>}
-          {bookingIsLoading?'Loading...':"Book Room"}
-         </Button>
-          </div>
-        ) : (
-          <div className="flex w-full justify-between">
-            <Button
-              onClick={() => handleRoomDelete(room)}
-              disabled={isLoading}
-              type="button"
-              variant="ghost"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4" /> Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash className="mr-2 h-4 w-4" /> Delete
-                </>
-              )}
-            </Button>
-            <Dialog open={open} onOpenChange={setopen}>
-              <DialogTrigger>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="max-w-[150px]"
-                >
-                  <Pencil className="mr-2 h-4 w-4" /> Update Room
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-[900px] w-[90%]">
-                <DialogHeader className="px-2">
-                  <DialogTitle>Update Room</DialogTitle>
-                  <DialogDescription>
-                    Make changes to this room
-                  </DialogDescription>
-                </DialogHeader>
-                <AddRoomForm
-                  hotel={hotel}
-                  room={room}
-                  handleDalogueOpen={handleDalogueOpen}
-                />
-              </DialogContent>
-            </Dialog>
-          </div>
-        )}
-      </CardFooter>
+       <CardFooter className="flex items-center justify-between">
+        <Button disabled={bookingIsLoading} variant={'outline'} onClick={()=>router.push(`/hotel-details/${hotel.id}`)}>View Hotel</Button>
+       </CardFooter>
     </Card>
   );
 };
 
-export default RoomCard;
+export default MyBookingClient;

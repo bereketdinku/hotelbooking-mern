@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import NavBar from "@/components/layout/NavBar";
 import ThemeProvider from "@/theme-provider";
 import Container from "@/components/Container";
+import LocationFilter from "@/components/LocationFilter";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({
        <Toaster/>
         <main className="flex flex-col min-h-screen bg-secondary">
         <NavBar/>
+        <LocationFilter/>
         <section className="flex-grow">
        <Container>
        {children}

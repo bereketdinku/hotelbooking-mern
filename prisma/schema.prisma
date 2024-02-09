@@ -67,6 +67,7 @@ model Room{
 model Booking{
   id String  @id @default(auto()) @map("_id") @db.ObjectId
   userName String
+  email   String
   userId String
   hotelId String @db.ObjectId
   hotelOwnerId String
