@@ -13,7 +13,7 @@ const Hotel = async({params}:HotelPageProps) => {
   if(hotel && hotel.userId!==userId) return <div>Access denied</div>
   
   return (<div>
-        <AddHotelForm hotel={hotel}/>
+        <AddHotelForm hotel={hotel} />
     </div>  );
 }
  

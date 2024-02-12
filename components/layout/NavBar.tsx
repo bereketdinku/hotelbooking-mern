@@ -20,12 +20,13 @@ const NavBar = () => {
           onClick={() => router.push("/")}
           className="flex items-center gap-1 cursor-pointer"
         >
-          <Image src="/logo.svg" alt="logo" width="30" height="30" />
+          {/* <Image src="/logo.svg" alt="logo" width="30" height="30" /> */}
           <div className="font-bold text-xl">E-Booking</div>
         </div>
         <SearchInput/>
         <div className="flex gap-3 items-center">
-          <div className=""><ModeToggle/> 
+          <div className="flex gap-2">
+            <ModeToggle/> 
           <NavMenu/>
           </div>
           <UserButton afterSignOutUrl="/" />
